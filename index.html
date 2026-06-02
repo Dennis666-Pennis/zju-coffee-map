@@ -843,6 +843,9 @@ function showDetail(s){
     '</div>'+
     '<div class="dp-footer"><a class="nav-btn" href="https://uri.amap.com/navigation?to='+s.loc[0]+','+s.loc[1]+','+encodeURIComponent(s.name)+'&mode=car&callnative=1" target="_blank">🧭 导航去这里</a></div>';
 
+  // Ensure panel is rendered before animating in
+  panel.style.display='flex';
+  panel.offsetHeight; // force reflow
   panel.classList.add('open');
   document.getElementById('map-wrap').classList.add('panel-open');
   document.getElementById('backdrop').classList.add('on');
@@ -854,12 +857,15 @@ function showDetail(s){
 }
 
 function closeDetail(){
-  document.getElementById('detailPanel').classList.remove('open');
+  var panel=document.getElementById('detailPanel');
+  panel.classList.remove('open');
   document.getElementById('map-wrap').classList.remove('panel-open');
   document.querySelectorAll('.card').forEach(function(c){c.classList.remove('hl');});
   // Hide backdrop only if list sheet is not open
   var sb=document.getElementById('sidebar');
   if(!sb.classList.contains('show'))document.getElementById('backdrop').classList.remove('on');
+  // Fully remove panel from rendering after transition completes
+  setTimeout(function(){panel.style.display='none';},360);
 }
 
 // ==================== EVENTS ====================
