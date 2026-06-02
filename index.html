@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>浙大咖啡地图</title>
+<script src="https://webapi.amap.com/maps?v=1.4.15&key=010412b3aae2f30fc2aecc1251739320"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0d0d1a 50%, #0a0a14 100%);
+  color:#f0f0f0;overflow:hidden;
+}
+/* Subtle background pattern */
+body::before{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background:radial-gradient(circle at 20% 80%, rgba(201,169,110,0.03) 0%, transparent 50%),
+             radial-gradient(circle at 80% 20%, rgba(201,169,110,0.02) 0%, transparent 50%);
+  pointer-events:none;z-index:0;
+}
+#app{display:flex;height:100vh;position:relative;z-index:1;}
+
+/* ==================== GLASS SIDEBAR ==================== */
+#sidebar{
+  width:400px;min-width:400px;
+  background:rgba(22,22,38,0.72);
+  backdrop-filter:blur(28px) saturate(180%);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);
+  border-right:1px solid rgba(255,255,255,0.08);
+  box-shadow:4px 0 40px rgba(0,0,0,0.3), inset 1px 0 0 rgba(255,255,255,0.04);
+  display:flex;flex-direction:column;z-index:10;transition:all .35s cubic-bezier(.4,0,.2,1);
+}
+#sidebar.full-list{width:100vw;min-width:100vw;}
+
+/* Glass header */
+.sb-hd{
+  padding:22px 22px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  flex-shrink:0;
+  background:linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+}
+.sb-logo{display:flex;align-items:center;gap:10px;}
+.sb-logo i{
+  width:40px;height:40px;
+  background:linear-gradient(135deg, rgba(201,169,110,0.3), rgba(180,150,70,0.15));
+  border:1px solid rgba(201,169,110,0.35);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-style:normal;
+  box-shadow:0 0 20px rgba(201,169,110,0.1), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.sb-title{font-size:19px;font-weight:700;letter-spacing:0.3px;}
+.sb-title span{color:#c9a96e;}
+.sb-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;padding-left:50px;}
+
+/* Glass toolbar */
+.sb-tools{display:flex;gap:6px;padding:14px 22px 0;flex-shrink:0;flex-wrap:wrap;}
+.sb-tools button{
+  padding:7px 16px;border-radius:20px;
+  border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.03);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  color:rgba(255,255,255,0.6);cursor:pointer;
+  font-size:11px;font-family:inherit;transition:all .25s;white-space:nowrap;
+  box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+}
+.sb-tools button:hover{
+  border-color:rgba(201,169,110,0.4);color:#d4b87a;
+  background:rgba(201,169,110,0.08);
+  box-shadow:0 0 16px rgba(201,169,110,0.08);
+}
+.sb-tools button.on{
+  background:rgba(201,169,110,0.15);border-color:rgba(201,169,110,0.5);color:#c9a96e;
+  box-shadow:0 0 20px rgba(201,169,110,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* Glass search */
+.sb-search{padding:12px 22px;flex-shrink:0;}
+.sb-search input{
+  width:100%;padding:11px 38px 11px 16px;border-radius:24px;
+  border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.04);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  color:#f0f0f0;font-size:13px;outline:none;
+  box-shadow:0 2px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03);
+  transition:all .3s;
+}
+.sb-search input::placeholder{color:rgba(255,255,255,0.25);}
+.sb-search input:focus{
+  border-color:rgba(201,169,110,0.5);
+  box-shadow:0 0 0 4px rgba(201,169,110,0.08), 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+  background:rgba(255,255,255,0.06);
+}
+
+/* Glass filter chips */
+.sb-filters{display:flex;gap:6px;padding:0 22px 12px;flex-shrink:0;flex-wrap:wrap;}
+.sb-filters button{
+  padding:6px 14px;border-radius:16px;
+  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.03);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  color:rgba(255,255,255,0.5);cursor:pointer;
+  font-size:11px;font-family:inherit;transition:all .25s;
+}
+.sb-filters button:hover{border-color:rgba(201,169,110,0.35);color:#d4b87a;}
+.sb-filters button.on{
+  background:rgba(201,169,110,0.15);border-color:rgba(201,169,110,0.45);color:#c9a96e;
+  box-shadow:0 0 14px rgba(201,169,110,0.12);
+}
+
+.sb-stat{padding:0 22px 10px;font-size:11px;color:rgba(255,255,255,0.3);flex-shrink:0;}.sb-stat b{color:#c9a96e;}
+
+/* Glass list */
+#list{flex:1;overflow-y:auto;padding:0 14px 14px;}
+#list::-webkit-scrollbar{width:4px;}
+#list::-webkit-scrollbar-track{background:transparent;}
+#list::-webkit-scrollbar-thumb{background:rgba(201,169,110,0.15);border-radius:2px;}
+#list::-webkit-scrollbar-thumb:hover{background:rgba(201,169,110,0.3);}
+
+/* ==================== GLASS CARD ==================== */
+.card{
+  display:flex;gap:12px;padding:14px;margin-bottom:8px;
+  background:rgba(255,255,255,0.025);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px;cursor:pointer;
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  position:relative;overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,0.15);
+}
+/* Glass light reflection on top edge */
+.card::after{
+  content:'';position:absolute;top:0;left:10%;width:80%;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  transition:opacity .3s;
+}
+.card:hover,.card.hl{
+  background:rgba(201,169,110,0.06);
+  border-color:rgba(201,169,110,0.3);
+  transform:translateX(4px);
+  box-shadow:0 8px 24px rgba(0,0,0,0.3), 0 0 30px rgba(201,169,110,0.05);
+}
+.card:hover::after,.card.hl::after{background:linear-gradient(90deg, transparent, rgba(201,169,110,0.2), transparent);}
+
+/* Glass thumbnail */
+.card-thumb{
+  width:58px;height:58px;min-width:58px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  position:relative;overflow:hidden;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.1);
+  box-shadow:0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.card-thumb.starbucks{background:linear-gradient(135deg, rgba(0,98,65,0.5), rgba(0,112,74,0.3));border-color:rgba(0,150,100,0.3);}
+.card-thumb.luckin{background:linear-gradient(135deg, rgba(26,58,138,0.5), rgba(40,81,176,0.3));border-color:rgba(60,100,200,0.3);}
+.card-thumb.cotti{background:linear-gradient(135deg, rgba(200,16,46,0.5), rgba(232,52,46,0.3));border-color:rgba(240,60,60,0.3);}
+.card-thumb.maxwell{background:linear-gradient(135deg, rgba(45,80,22,0.5), rgba(74,124,35,0.3));border-color:rgba(100,160,40,0.3);}
+.card-thumb.campus{background:linear-gradient(135deg, rgba(91,58,140,0.5), rgba(124,92,191,0.3));border-color:rgba(140,110,210,0.3);}
+.card-thumb.special{background:linear-gradient(135deg, rgba(201,169,110,0.4), rgba(180,148,63,0.25));border-color:rgba(201,169,110,0.3);}
+
+.card-body{flex:1;min-width:0;}
+.card-name{font-size:13px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,0.9);}
+.card-addr{font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-info-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:3px;}
+.card-hours{font-size:10px;color:rgba(255,255,255,0.35);}
+.card-badges{display:flex;gap:4px;flex-wrap:wrap;}
+.badge{
+  padding:2px 7px;border-radius:8px;font-size:9px;font-weight:500;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border:1px solid;
+}
+.badge.wifi{background:rgba(76,175,80,0.1);color:#81c784;border-color:rgba(76,175,80,0.2);}
+.badge.plug{background:rgba(255,183,77,0.1);color:#ffb74d;border-color:rgba(255,183,77,0.2);}
+.badge.quiet{background:rgba(100,180,255,0.1);color:#64b5f6;border-color:rgba(100,180,255,0.2);}
+.badge.seats{background:rgba(201,169,110,0.08);color:rgba(201,169,110,0.9);border-color:rgba(201,169,110,0.2);}
+.card-tags{display:flex;gap:4px;margin-top:4px;}
+.card-tag{
+  padding:2px 8px;border-radius:8px;
+  background:rgba(201,169,110,0.06);color:rgba(201,169,110,0.8);
+  border:1px solid rgba(201,169,110,0.15);
+  font-size:9px;
+}
+
+/* Footer */
+.sb-ft{
+  padding:10px 20px;border-top:1px solid rgba(255,255,255,0.05);
+  font-size:10px;color:rgba(255,255,255,0.25);text-align:center;flex-shrink:0;
+  background:rgba(0,0,0,0.1);
+}
+.sb-ft a{color:rgba(201,169,110,0.7);text-decoration:none;}
+
+/* ==================== MAP AREA ==================== */
+#map-wrap{flex:1;position:relative;transition:all .35s cubic-bezier(.4,0,.2,1);}
+#map-wrap.hidden-map{flex:0;overflow:hidden;}
+#map{width:100%;height:100%;}
+
+/* Glass floating buttons */
+.btn-toggle,.btn-view,.btn-zoom{
+  position:absolute;z-index:20;width:40px;height:40px;border-radius:50%;
+  background:rgba(22,22,38,0.75);
+  backdrop-filter:blur(16px) saturate(180%);
+  -webkit-backdrop-filter:blur(16px) saturate(180%);
+  border:1px solid rgba(255,255,255,0.12);
+  color:#c9a96e;font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .3s;
+  box-shadow:0 4px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03) inset;
+}
+.btn-toggle{top:18px;left:18px;}
+.btn-view{top:68px;left:18px;}
+.btn-zoom-in{top:18px;right:18px;font-size:20px;font-weight:300;}
+.btn-zoom-out{top:68px;right:18px;font-size:20px;font-weight:300;}
+.btn-toggle:hover,.btn-view:hover,.btn-zoom:hover{
+  background:rgba(201,169,110,0.2);border-color:rgba(201,169,110,0.5);
+  box-shadow:0 4px 24px rgba(0,0,0,0.4), 0 0 20px rgba(201,169,110,0.15);
+  transform:scale(1.05);
+}
+
+/* ==================== COFFEE MARKER ==================== */
+.coffee-marker{text-align:center;cursor:pointer;transition:transform .2s;}
+.coffee-marker:hover{transform:scale(1.35);}
+.coffee-marker .cup{
+  font-size:26px;line-height:1;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 10px rgba(201,169,110,0.4));
+  animation:bounce 2s ease-in-out infinite;
+}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.coffee-marker .lbl{
+  display:inline-block;margin-top:1px;padding:3px 8px;border-radius:10px;
+  background:rgba(22,22,38,0.8);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:#f0f0f0;font-size:9px;font-weight:600;white-space:nowrap;
+  max-width:80px;overflow:hidden;text-overflow:ellipsis;
+  border:1px solid rgba(255,255,255,0.1);
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ==================== GLASS INFO WINDOW ==================== */
+.info-card{
+  background:rgba(22,22,38,0.88);
+  backdrop-filter:blur(30px) saturate(200%);
+  -webkit-backdrop-filter:blur(30px) saturate(200%);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px;padding:0;min-width:280px;max-width:340px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(201,169,110,0.06), 0 0 0 1px rgba(255,255,255,0.03) inset;
+  overflow:hidden;
+}
+.info-header{
+  padding:22px 18px 16px;display:flex;align-items:center;gap:12px;position:relative;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.info-header.starbucks{background:linear-gradient(135deg, rgba(0,98,65,0.35), rgba(0,112,74,0.15));}
+.info-header.luckin{background:linear-gradient(135deg, rgba(26,58,138,0.35), rgba(40,81,176,0.15));}
+.info-header.cotti{background:linear-gradient(135deg, rgba(200,16,46,0.35), rgba(232,52,46,0.15));}
+.info-header.maxwell{background:linear-gradient(135deg, rgba(45,80,22,0.35), rgba(74,124,35,0.15));}
+.info-header.campus{background:linear-gradient(135deg, rgba(91,58,140,0.35), rgba(124,92,191,0.15));}
+.info-header.special{background:linear-gradient(135deg, rgba(201,169,110,0.3), rgba(180,148,63,0.12));}
+.info-header .thumb-icon{font-size:34px;flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));}
+.info-header .name{font-size:16px;font-weight:700;line-height:1.3;padding-right:22px;}
+.info-header .close-btn{
+  position:absolute;top:12px;right:14px;width:26px;height:26px;
+  background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);border-radius:50%;
+  color:rgba(255,255,255,0.7);cursor:pointer;font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  transition:all .2s;
+}
+.info-header .close-btn:hover{background:rgba(255,255,255,0.15);color:#fff;}
+
+.info-body{padding:16px 18px;}
+.info-body .row{display:flex;gap:6px;margin-bottom:7px;font-size:12px;color:rgba(255,255,255,0.55);}
+.info-body .row .ic{color:#c9a96e;opacity:0.8;}
+.info-body .amenities{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;}
+.info-body .amenities .badge{font-size:10px;padding:3px 10px;}
+.info-body .desc{
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid rgba(255,255,255,0.06);
+  font-size:11px;color:rgba(255,255,255,0.5);line-height:1.6;
+}
+.info-body .nav-btn{
+  display:block;width:100%;padding:11px;margin-top:12px;
+  background:linear-gradient(135deg, rgba(201,169,110,0.8), rgba(180,148,63,0.6));
+  border:1px solid rgba(201,169,110,0.3);border-radius:22px;
+  color:#0d0d1a;font-size:13px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 4px 16px rgba(201,169,110,0.15);
+  transition:all .25s;
+}
+.info-body .nav-btn:hover{
+  background:linear-gradient(135deg, rgba(201,169,110,1), rgba(190,158,73,0.8));
+  box-shadow:0 6px 24px rgba(201,169,110,0.25);
+  transform:translateY(-1px);
+}
+
+/* ==================== EMPTY/LOADING ==================== */
+.empty{padding:50px 20px;text-align:center;}
+.empty .icon{font-size:44px;margin-bottom:14px;opacity:0.3;}
+.empty .t1{font-size:14px;color:rgba(255,255,255,0.4);margin-bottom:6px;}
+.empty .t2{font-size:11px;color:rgba(255,255,255,0.2);line-height:1.5;}
+.spin-wrap{padding:50px;text-align:center;}
+.spin{
+  display:inline-block;width:30px;height:30px;
+  border:2px solid rgba(255,255,255,0.06);border-top-color:rgba(201,169,110,0.6);
+  border-radius:50%;animation:spin .8s linear infinite;
+  box-shadow:0 0 16px rgba(201,169,110,0.1);
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ==================== MOBILE ==================== */
+@media(max-width:768px){
+ #sidebar{
+   position:fixed;top:0;left:0;width:100vw;min-width:100vw;height:45vh;
+   border-radius:0 0 20px 20px;transition:transform .35s cubic-bezier(.4,0,.2,1);
+   box-shadow:0 8px 50px rgba(0,0,0,0.5);
+   background:rgba(22,22,38,0.85);
+ }
+ #sidebar.hidden{transform:translateY(calc(-45vh + 52px));}
+ #sidebar.full-list{height:100vh;border-radius:0;transform:translateY(0);}
+ .btn-toggle{top:auto;bottom:96px;left:50%;transform:translateX(-50%);width:46px;height:46px;}
+ .btn-view{top:auto;bottom:150px;left:50%;transform:translateX(-50%);width:46px;height:46px;}
+ .btn-zoom-in{top:18px;right:10px;width:36px;height:36px;}
+ .btn-zoom-out{top:58px;right:10px;width:36px;height:36px;}
+ .btn-toggle:hover,.btn-view:hover{transform:translateX(-50%) scale(1.05);}
+ .btn-zoom:hover{transform:scale(1.05);}
+ .card-thumb{width:46px;height:46px;min-width:46px;font-size:22px;}
+}
+
+/* ==================== BRAND LEFT BORDER ==================== */
+.card.starbucks{border-left:3px solid rgba(0,150,100,0.55);}
+.card.luckin{border-left:3px solid rgba(60,100,200,0.55);}
+.card.cotti{border-left:3px solid rgba(240,60,60,0.55);}
+.card.maxwell{border-left:3px solid rgba(100,160,40,0.55);}
+.card.campus{border-left:3px solid rgba(140,110,210,0.55);}
+.card.special{border-left:3px solid rgba(201,169,110,0.55);}
+
+/* ==================== SEARCH CLEAR & HIGHLIGHT ==================== */
+.sb-search{position:relative;}
+.search-clear{
+  position:absolute;right:28px;top:50%;transform:translateY(-50%);
+  width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);cursor:pointer;
+  font-size:10px;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+.search-clear:hover{background:rgba(255,255,255,0.15);color:#fff;}
+.hl-text{background:rgba(201,169,110,0.2);color:#e0c878;border-radius:2px;padding:0 1px;}
+
+/* ==================== SORT BAR ==================== */
+.sb-sort{display:flex;gap:4px;align-items:center;padding:0 22px 8px;flex-shrink:0;}
+.sb-sort .sort-label{font-size:10px;color:rgba(255,255,255,0.22);margin-right:4px;}
+.sb-sort button{
+  padding:4px 12px;border-radius:12px;
+  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.03);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  color:rgba(255,255,255,0.4);cursor:pointer;
+  font-size:10px;font-family:inherit;transition:all .25s;
+}
+.sb-sort button:hover{border-color:rgba(201,169,110,0.35);color:#d4b87a;}
+.sb-sort button.on{
+  background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.4);
+  color:#c9a96e;box-shadow:0 0 10px rgba(201,169,110,0.08);
+}
+
+/* ==================== RIGHT DETAIL PANEL ==================== */
+.detail-panel{
+  position:absolute;top:0;right:0;bottom:0;
+  width:370px;max-width:calc(100vw - 50px);
+  background:rgba(22,22,38,0.9);
+  backdrop-filter:blur(30px) saturate(200%);
+  -webkit-backdrop-filter:blur(30px) saturate(200%);
+  border-left:1px solid rgba(255,255,255,0.08);
+  box-shadow:-8px 0 40px rgba(0,0,0,0.5), inset 1px 0 0 rgba(255,255,255,0.03);
+  z-index:25;transform:translateX(105%);
+  transition:transform .35s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.detail-panel.open{transform:translateX(0);}
+.dp-photo{
+  height:180px;flex-shrink:0;position:relative;
+  background-size:cover;background-position:center;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  display:flex;align-items:center;justify-content:center;
+}
+.dp-photo.starbucks{background-image:linear-gradient(135deg, #0a3828 0%, #0d5c36 50%, #0a3525 100%);}
+.dp-photo.luckin{background-image:linear-gradient(135deg, #0d1f4a 0%, #15307a 50%, #0d1a3d 100%);}
+.dp-photo.cotti{background-image:linear-gradient(135deg, #5c0a1a 0%, #8b1225 50%, #4a0814 100%);}
+.dp-photo.maxwell{background-image:linear-gradient(135deg, #1a2e0e 0%, #2d4a18 50%, #1a2a0e 100%);}
+.dp-photo.campus{background-image:linear-gradient(135deg, #2a1a3d 0%, #3d2060 50%, #231535 100%);}
+.dp-photo.special{background-image:linear-gradient(135deg, #3d2a0a 0%, #5c3d10 50%, #3a2508 100%);}
+.dp-photo .dp-photo-icon{
+  font-size:64px;opacity:0.45;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+  pointer-events:none;
+}
+.dp-photo .dp-close{
+  position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.35);
+  color:rgba(255,255,255,0.7);cursor:pointer;font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:all .2s;z-index:5;
+}
+.dp-photo .dp-close:hover{background:rgba(255,255,255,0.2);color:#fff;}
+.dp-header{
+  padding:22px 18px 16px;display:flex;align-items:center;gap:12px;position:relative;
+  border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;
+}
+.dp-header.starbucks{background:linear-gradient(135deg, rgba(0,98,65,0.4), rgba(0,112,74,0.12));}
+.dp-header.luckin{background:linear-gradient(135deg, rgba(26,58,138,0.4), rgba(40,81,176,0.12));}
+.dp-header.cotti{background:linear-gradient(135deg, rgba(200,16,46,0.4), rgba(232,52,46,0.12));}
+.dp-header.maxwell{background:linear-gradient(135deg, rgba(45,80,22,0.4), rgba(74,124,35,0.12));}
+.dp-header.campus{background:linear-gradient(135deg, rgba(91,58,140,0.4), rgba(124,92,191,0.12));}
+.dp-header.special{background:linear-gradient(135deg, rgba(201,169,110,0.35), rgba(180,148,63,0.1));}
+.dp-header .dp-icon{font-size:36px;flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));}
+.dp-header .dp-info{flex:1;min-width:0;}
+.dp-header .dp-name{font-size:16px;font-weight:700;line-height:1.3;color:#f0f0f0;}
+.dp-header .dp-tag{font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px;}
+.dp-close{
+  position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.25);
+  color:rgba(255,255,255,0.6);cursor:pointer;font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  transition:all .2s;
+}
+.dp-close:hover{background:rgba(255,255,255,0.15);color:#fff;}
+.dp-body{flex:1;overflow-y:auto;padding:16px 18px;}
+.dp-body::-webkit-scrollbar{width:3px;}
+.dp-body::-webkit-scrollbar-track{background:transparent;}
+.dp-body::-webkit-scrollbar-thumb{background:rgba(201,169,110,0.15);border-radius:2px;}
+.dp-body .row{display:flex;gap:8px;margin-bottom:8px;font-size:12px;color:rgba(255,255,255,0.5);align-items:flex-start;}
+.dp-body .row .ic{color:#c9a96e;opacity:0.7;flex-shrink:0;}
+.dp-body .amenities{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap;}
+.dp-body .amenities .badge{font-size:10px;padding:3px 10px;}
+.dp-body .desc{
+  margin-top:12px;padding-top:12px;
+  border-top:1px solid rgba(255,255,255,0.06);
+  font-size:11px;color:rgba(255,255,255,0.4);line-height:1.7;
+}
+.dp-footer{
+  padding:14px 18px;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0;
+}
+.dp-footer .nav-btn{
+  display:block;width:100%;padding:11px;
+  background:linear-gradient(135deg, rgba(201,169,110,0.8), rgba(180,148,63,0.6));
+  border:1px solid rgba(201,169,110,0.3);border-radius:22px;
+  color:#0d0d1a;font-size:13px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 4px 16px rgba(201,169,110,0.15);
+  transition:all .25s;
+}
+.dp-footer .nav-btn:hover{
+  background:linear-gradient(135deg, rgba(201,169,110,1), rgba(190,158,73,0.8));
+  box-shadow:0 6px 24px rgba(201,169,110,0.25);transform:translateY(-1px);
+}
+
+/* Shift zoom buttons when panel is open */
+.panel-open .btn-zoom-in{right:388px;}
+.panel-open .btn-zoom-out{right:388px;}
+
+/* Detail panel mobile */
+@media(max-width:768px){
+  .detail-panel{
+    top:auto;bottom:0;left:0;right:0;width:100%;max-width:100%;
+    height:58vh;transform:translateY(105%);border-left:none;
+    border-radius:20px 20px 0 0;
+  }
+  .detail-panel.open{transform:translateY(0);}
+  .dp-photo{height:130px;}
+	  .dp-photo .dp-photo-icon{font-size:48px;}
+	  .dp-photo .dp-close{top:12px;right:12px;width:32px;height:32px;}
+  .panel-open .btn-zoom-in{right:10px;}
+  .panel-open .btn-zoom-out{right:10px;top:58px;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div class="sb-hd">
+      <div class="sb-logo"><i>☕</i><div class="sb-title">浙大<span>咖啡地图</span></div></div>
+      <div class="sb-sub">紫金港校区 · 55家咖啡店 · 精准坐标</div>
+    </div>
+    <div class="sb-search"><input id="kw" placeholder="搜索咖啡店名称或品牌..." autocomplete="off"><button class="search-clear" id="searchClear" style="display:none" title="清除">✕</button></div>
+    <div class="sb-sort" id="sortBar">
+	      <span class="sort-label">排序：</span>
+	      <button class="on" data-sort="dist">距离</button>
+	      <button data-sort="name">名称</button>
+	    </div>
+	    <div class="sb-tools" id="toolBar">
+      <button class="on" data-tag="">全部</button>
+      <button data-tag="星巴克">星巴克</button>
+      <button data-tag="瑞幸">瑞幸</button>
+      <button data-tag="库迪">库迪</button>
+      <button data-tag="麦思威">麦思威</button>
+      <button data-tag="独立">独立咖啡</button>
+    </div>
+    <div class="sb-filters" id="filters">
+      <button data-r="1000">1km</button>
+      <button data-r="3000">3km</button>
+      <button data-r="5000" class="on">5km</button>
+    </div>
+    <div class="sb-stat" id="stat">共 <b id="cnt">0</b> 家咖啡店</div>
+    <div id="list"><div class="empty"><div class="icon">☕</div><div class="t1">加载中...</div></div></div>
+    <div class="sb-ft">Powered by <a href="https://lbs.amap.com/" target="_blank">高德地图</a> · 数据源自 <a href="https://coffee.philfan.cn" target="_blank">早C晚A</a></div>
+  </div>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <button class="btn-toggle" id="toggle" title="面板">◀</button>
+    <button class="btn-view" id="viewToggle" title="切换列表/地图">📋</button>
+    <button class="btn-zoom btn-zoom-in" id="zoomIn" title="放大">+</button>
+    <button class="btn-zoom btn-zoom-out" id="zoomOut" title="缩小">−</button>
+	    <div class="detail-panel" id="detailPanel"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ==================== DATA (enriched from coffee.philfan.cn) ====================
+var SHOPS = [
+ {id:'zjg01',name:'1897咖啡(浙大紫金港店)',addr:'浙江大学紫金港校区',loc:[120.093757,30.306442],dist:1229,hours:'09:00-18:30',tag:'独立',type:'特色',brand:'special',icon:'🏛️',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'1897咖啡浙大紫金港店，评分4.3分，人均消费约20元。'},
+ {id:'zjg02',name:'2EZ COOKIE(西城年华店)',addr:'紫金港校区附近',loc:[120.10059,30.308211],dist:1910,hours:'09:30-20:30',tag:'独立',type:'特色',brand:'special',icon:'🍪',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'位于紫金港校区附近，评分4.1分，人均消费约30元。'},
+ {id:'zjg03',name:'北街咖啡（港湾家园西区店）',addr:'港湾家园西区',loc:[120.085423,30.310638],dist:1013,hours:'24小时',tag:'独立',type:'特色',brand:'special',icon:'🌙',wifi:true,outlets:true,quiet:true,seating:'座位适中',img:'',desc:'24小时咖啡店，为紫金港校区师生提供全天候咖啡服务。环境舒适，WiFi+插座齐全，适合学习和社交。'},
+ {id:'zjg04',name:'西区食堂咖啡角',addr:'西区食堂',loc:[120.079575,30.296555],dist:647,hours:'06:30-20:00',tag:'独立',type:'校园',brand:'campus',icon:'🍽️',wifi:true,outlets:false,quiet:false,seating:'约50座',img:'',desc:'提供快捷便利的咖啡和简餐服务，价格亲民，是早餐和简餐的理想选择。'},
+ {id:'zjg05',name:'库迪咖啡（成均院店）',addr:'成均院西区10幢教育学院1层',loc:[120.078576,30.297393],dist:607,hours:'07:30-16:30',tag:'库迪',type:'连锁',brand:'cotti',icon:'☕',wifi:true,outlets:false,quiet:false,seating:'室内2+室外12',img:'',desc:'空间较小，室内仅有2个座位且无插座；室外有12张露营椅供顾客休息。'},
+ {id:'zjg06',name:'库迪咖啡(浙大剑桥公社店)',addr:'剑桥公社',loc:[120.094122,30.305772],dist:1234,hours:'08:30-18:30',tag:'库迪',type:'连锁',brand:'cotti',icon:'☕',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'评分3.9分，人均消费约10元。'},
+ {id:'zjg07',name:'库迪咖啡（启真湖教超店）',addr:'启真湖教育超市旁',loc:[120.085384,30.304241],dist:408,hours:'06:00-22:00',tag:'库迪',type:'连锁',brand:'cotti',icon:'☕',wifi:true,outlets:true,quiet:false,seating:'4个充电口',img:'',desc:'两张长桌，四个插座，可租赁充电宝。适合去东教/西教上课路上购入咖啡的同学。'},
+ {id:'zjg08',name:'库迪咖啡(同人精华A座店)',addr:'同人精华A座（三坝站B1口）',loc:[120.0935,30.3075],dist:1259,hours:'',tag:'库迪',type:'连锁',brand:'cotti',icon:'☕',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'位于三坝地铁站B1口旁，交通便利。'},
+ {id:'zjg09',name:'库迪咖啡（西港新界B区店）',addr:'振华路西港新界B区',loc:[120.068526,30.312674],dist:1752,hours:'07:30-19:30',tag:'库迪',type:'连锁',brand:'cotti',icon:'☕',wifi:true,outlets:false,quiet:false,seating:'座位适中',img:'',desc:'为紫金港校区附近提供便捷的咖啡服务。'},
+ {id:'zjg10',name:'库迪咖啡(三墩紫金广场店)',addr:'三墩紫金广场新时代陶瓷1层',loc:[120.0935,30.3075],dist:1259,hours:'',tag:'库迪',type:'连锁',brand:'cotti',icon:'☕',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'位于紫金广场新时代陶瓷1层。'},
+ {id:'zjg11',name:'建工之家',addr:'安中大楼A楼二楼西侧',loc:[120.083743,30.301406],dist:179,hours:'09:30-17:30',tag:'独立',type:'校园',brand:'campus',icon:'🏗️',wifi:true,outlets:true,quiet:false,seating:'很多充电口',img:'',desc:'空间很大，有投影仪可以借用，装修风格绿色。设计图画累的建筑师们可以来这里放松心情。'},
+ {id:'zjg12',name:'图书馆咖啡厅',addr:'基础图书馆一楼',loc:[120.080303,30.303294],dist:216,hours:'07:30-22:00',tag:'独立',type:'校园',brand:'campus',icon:'📚',wifi:true,outlets:true,quiet:true,seating:'约150座',img:'',desc:'环境安静优雅，免费WiFi和充足电源插座，适合长时间学习。使用优质咖啡豆，由专业咖啡师制作。'},
+ {id:'zjg13',name:'瑞幸咖啡（白沙店）',addr:'白沙综合楼二层',loc:[120.086425,30.308575],dist:844,hours:'07:00-20:00',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:true,outlets:true,quiet:false,seating:'约20座/15插座',img:'',desc:'5张小方桌，四张长桌，可容纳20人左右，插座数量充足。既有高脚凳也有沙发，适合讨论与放松。'},
+ {id:'zjg14',name:'瑞幸咖啡（环资店）',addr:'农生环B座环资学院',loc:[120.091176,30.297769],dist:996,hours:'07:30-19:30',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:true,outlets:false,quiet:false,seating:'无插座',img:'',desc:'两张小圆桌，侧面一张沙发。无插座，适合随拿随走。'},
+ {id:'zjg15',name:'瑞幸咖啡(剑桥公社店)',addr:'剑桥公社',loc:[120.094563,30.305921],dist:1280,hours:'07:00-18:00',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'评分4.3分，人均消费约13元。'},
+ {id:'zjg16',name:'瑞幸咖啡（人文学院店）',addr:'人文学院大楼一层大厅',loc:[120.086004,30.309052],dist:871,hours:'07:30-19:00',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:true,outlets:true,quiet:false,seating:'约3个插座',img:'',desc:'店面很小，但可在学院大楼一楼座位入座，配有约3个插座。来往师生多。'},
+ {id:'zjg17',name:'瑞幸咖啡(虾龙圩站店)',addr:'虾龙圩地铁站A口B1层',loc:[120.0935,30.3075],dist:1259,hours:'',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'位于虾龙圩地铁站A口负一层，交通便利，适合地铁通勤族。'},
+ {id:'zjg18',name:'瑞幸咖啡（西区店）',addr:'紫金港西区',loc:[120.07243,30.299349],dist:963,hours:'07:00-22:00',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:true,outlets:false,quiet:false,seating:'约20座',img:'',desc:'出杯速度很快。室内有几张桌子和约20个座位，但没有插座；光线较暗。'},
+ {id:'zjg19',name:'瑞幸咖啡（医学院店）',addr:'医学科研楼D区',loc:[120.084462,30.295967],dist:710,hours:'07:00-21:00',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:true,outlets:true,quiet:false,seating:'3个充电口',img:'',desc:'长沙发、小圆桌和长桌可供自习，店内装饰很有风格。插座较少，更适合临时讨论。'},
+ {id:'zjg20',name:'瑞幸咖啡(浙港国际店)',addr:'浙港国际',loc:[120.093496,30.308814],dist:1336,hours:'07:00-18:00',tag:'瑞幸',type:'连锁',brand:'luckin',icon:'🦌',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'评分4.3分，人均消费约16元。'},
+ {id:'zjg21',name:'麦斯威（东二店）',addr:'东二教学楼学生文化长廊',loc:[120.089435,30.302666],dist:716,hours:'07:30-21:00',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:true,quiet:false,seating:'超多插座',img:'',desc:'空间大、共两层，自习座位很多，插座很充足。除一般桌子外还有独立小包厢。'},
+ {id:'zjg22',name:'麦思威（段永平店）',addr:'北区教学楼教1-104',loc:[120.076675,30.305225],dist:623,hours:'07:30-18:30',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:true,quiet:false,seating:'约8插座',img:'',desc:'空间开阔，浅棕色木质地板、简约布艺沙发与书架相得益彰。店内不仅设有插座还有免费充电器。'},
+ {id:'zjg23',name:'麦斯威（环资店）',addr:'农生环B座环资学院',loc:[120.091176,30.297769],dist:996,hours:'08:00-18:00',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:true,quiet:true,seating:'约20座',img:'',desc:'学院楼旁的"小复式"。窗边桌椅有插孔，座位充足，可容纳20人左右。'},
+ {id:'zjg24',name:'麦斯威（基图店）',addr:'基础图书馆',loc:[120.088595,30.30381],dist:663,hours:'08:00-19:00',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:true,quiet:true,seating:'超多插座',img:'',desc:'环境很好，桌子插座都很多，噪音少。在基图学累了不妨来这里放松一下。'},
+ {id:'zjg25',name:'麦思威（图书馆主馆店）',addr:'图书馆主馆一楼',loc:[120.080303,30.303294],dist:216,hours:'07:30-21:00',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:true,quiet:true,seating:'座位充足',img:'',desc:'宽敞明亮的空间、错落有致的求是鹰吊灯、清新绿植点缀，营造浓厚的学术氛围。'},
+ {id:'zjg26',name:'麦斯威（青四店）',addr:'青四楼下文韵丹青',loc:[120.08495,30.3095],dist:879,hours:'08:00-19:00',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:true,quiet:true,seating:'13个充电口',img:'',desc:'位于青四楼下的文韵丹青，环境安静，布置好看。插座数量足以满足需求。'},
+ {id:'zjg27',name:'麦斯威（西一店）',addr:'西一教学楼一楼',loc:[120.089435,30.302666],dist:716,hours:'07:30-21:00',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:false,quiet:false,seating:'无插座/纯露天',img:'',desc:'五张长桌，无插座，纯露天。大课间大家来这里填饱肚子，出餐速度较快。'},
+ {id:'zjg28',name:'麦思威（银泉店）',addr:'银泉餐厅楼下玻璃房',loc:[120.075181,30.307217],dist:873,hours:'09:00-19:30',tag:'麦思威',type:'校园',brand:'maxwell',icon:'🌿',wifi:true,outlets:true,quiet:false,seating:'约15插座',img:'',desc:'正对面是银泉健身房，是运动爱好者的"能量补给站"。除咖啡外还有浙大特色饮品和轻食简餐。'},
+ {id:'zjg29',name:'门口咖啡',addr:'紫金港校区附近',loc:[120.097091,30.307942],dist:1589,hours:'10:00-17:00',tag:'独立',type:'特色',brand:'special',icon:'🚪',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'评分4.1分，人均消费约25元。'},
+ {id:'zjg30',name:'MINI-CO小咖咖啡',addr:'瑞泽商务中心',loc:[120.0935,30.3075],dist:1259,hours:'',tag:'独立',type:'特色',brand:'special',icon:'☕',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'MINI-CO小咖咖啡瑞泽大厦店，位于瑞泽商务中心。'},
+ {id:'zjg31',name:'Ms.楊面包咖啡店',addr:'紫金港商务大厦五楼露台',loc:[120.097925,30.305075],dist:1563,hours:'08:30-19:00',tag:'独立',type:'特色',brand:'special',icon:'🥐',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'评分4.4分，人均消费约44元。环境优雅，提供特色面包和咖啡饮品。'},
+ {id:'zjg32',name:'南风咖啡(同人精华2座店)',addr:'同人精华F座10层',loc:[120.0935,30.3075],dist:1259,hours:'',tag:'独立',type:'特色',brand:'special',icon:'🍃',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'环境安静，适合工作学习。'},
+ {id:'zjg33',name:'潘方仁求是馆',addr:'求是大讲堂东侧',loc:[120.080224,30.302011],dist:170,hours:'11:00-19:00',tag:'独立',type:'校园',brand:'campus',icon:'🏯',wifi:true,outlets:true,quiet:true,seating:'约60+插座',img:'',desc:'坐落于求是大讲堂东侧，青砖黛瓦、飞檐翘角，极具江南园林韵味。落地窗外即是庭院景观，宛如"真江南"。'},
+ {id:'zjg34',name:'Poly Tea 泡理茶',addr:'紫金港校区',loc:[120.075075,30.299375],dist:724,hours:'09:00-19:30',tag:'独立',type:'特色',brand:'special',icon:'🍹',wifi:true,outlets:false,quiet:false,seating:'室内2+室外28',img:'',desc:'除咖啡外也有其他饮品和甜品。室内空间小，室外有露营椅可坐约28人。可提供校内外卖。'},
+ {id:'zjg35',name:'青荷咖啡吧',addr:'外院东五教学楼一楼',loc:[120.090525,30.302375],dist:818,hours:'07:20-19:20',tag:'独立',type:'校园',brand:'campus',icon:'🪷',wifi:true,outlets:false,quiet:true,seating:'无插座',img:'',desc:'环境简约安静，墙上装饰有历史沿革等，可在历史熏陶下享受咖啡的美味。'},
+ {id:'zjg36',name:'邵医咖啡',addr:'纳米楼二楼',loc:[120.088725,30.297625],dist:806,hours:'09:00-18:00',tag:'独立',type:'特色',brand:'special',icon:'🏥',wifi:true,outlets:true,quiet:true,seating:'很多插座',img:'',desc:'店面较大座位充足。装修风格有复古感，温馨漂亮。很适合三两同学一起来。'},
+ {id:'zjg37',name:'SMEcoffee',addr:'紫金港校区',loc:[120.075327,30.30456],dist:699,hours:'09:00-18:00',tag:'独立',type:'特色',brand:'special',icon:'⚙️',wifi:true,outlets:true,quiet:true,seating:'约18插座',img:'',desc:'设计感MAX！分为上下两层，装修采用简约机械风格，非常适合课间休息或小组讨论。'},
+ {id:'zjg38',name:'SS sing coffee',addr:'紫金港校区附近（三坝站B4口）',loc:[120.095818,30.304002],dist:1342,hours:'',tag:'独立',type:'特色',brand:'special',icon:'🎤',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'靠近三坝地铁站B4口，交通便利，评分3.8分。'},
+ {id:'zjg39',name:'星巴克（澄月店）',addr:'澄月研究生宿舍楼1、2号楼辅楼',loc:[120.08012,30.296473],dist:639,hours:'07:00-21:00',tag:'星巴克',type:'连锁',brand:'starbucks',icon:'⭐',wifi:true,outlets:true,quiet:false,seating:'1楼1个/2楼8个插座',img:'',desc:'有上下两层。靠窗座位视野采光很好。二楼座位较多，高桌矮圆桌均有，插座也更多。店铺装修精致，适合久坐办公。'},
+ {id:'zjg40',name:'星巴克（银泉店）',addr:'银泉餐厅旁',loc:[120.075425,30.305916],dist:765,hours:'07:00-21:00',tag:'星巴克',type:'连锁',brand:'starbucks',icon:'⭐',wifi:true,outlets:true,quiet:false,seating:'部分座椅下有插孔',img:'',desc:'紫金港校区两家星巴克之一。座位较多，有长桌可提供研讨，靠墙座位均设有插座。'},
+ {id:'zjg41',name:'星巴克(杭州紫金广场店)',addr:'紫金广场',loc:[120.094302,30.308224],dist:1366,hours:'07:00-22:00',tag:'星巴克',type:'连锁',brand:'starbucks',icon:'⭐',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'评分4.5分，人均消费约36元。'},
+ {id:'zjg42',name:'星巴克（杭州浙大森林店）',addr:'浙大森林科技园区',loc:[120.063867,30.308018],dist:1861,hours:'07:00-19:00',tag:'星巴克',type:'连锁',brand:'starbucks',icon:'⭐',wifi:true,outlets:true,quiet:true,seating:'座位充足',img:'',desc:'位于浙大森林科技园区，为园区企业和浙大师生提供高品质咖啡。环境舒适，适合商务洽谈。'},
+ {id:'zjg43',name:'日落咖啡(新时代陶瓷店)',addr:'新时代陶瓷',loc:[120.09394,30.309103],dist:1389,hours:'09:30-20:00',tag:'独立',type:'特色',brand:'special',icon:'🌅',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'评分4.4分，人均消费约24元。'},
+ {id:'zjg44',name:'浙大文创咖啡',addr:'艺术与考古博物馆',loc:[120.071585,30.297403],dist:1120,hours:'09:00-17:00',tag:'独立',type:'校园',brand:'campus',icon:'🎨',wifi:true,outlets:true,quiet:true,seating:'2个充电口',img:'',desc:'坐落于艺博馆，得天独厚的艺术氛围。简约大气的设计，经典的红黑配色。'},
+ {id:'zjg45',name:'晓风书屋',addr:'图书馆一楼',loc:[120.079446,30.297839],dist:522,hours:'09:00-18:00',tag:'独立',type:'特色',brand:'special',icon:'📖',wifi:true,outlets:true,quiet:true,seating:'部分座位有插座',img:'',desc:'木质调环境，摆满书籍和文创。座位分散，私密性强互不干扰。阳光、古籍和咖啡交汇。'},
+ {id:'zjg46',name:'校友咖啡（蒙楼咖啡）',addr:'蒙民伟楼',loc:[120.088335,30.298392],dist:727,hours:'08:00-18:00',tag:'独立',type:'校园',brand:'campus',icon:'🎓',wifi:true,outlets:true,quiet:true,seating:'每桌基本都有插座',img:'',desc:'座位充足、空间大。环境很好很舒适，很有氛围感。'},
+ {id:'zjg47',name:'熊爪咖啡',addr:'银泉学院转角',loc:[120.075048,30.306619],dist:840,hours:'08:00-16:00',tag:'独立',type:'特色',brand:'special',icon:'🐻',wifi:true,outlets:true,quiet:true,seating:'约6个充电口',img:'',desc:'这是一家专助残障伙伴就业的咖啡店。毛绒熊挨挨挤挤趴在架上，空气里裹着咖啡香与软乎乎的善意。'},
+ {id:'zjg48',name:'西街咖啡',addr:'成均苑9幢1楼',loc:[120.078786,30.298159],dist:525,hours:'08:30-20:30',tag:'独立',type:'特色',brand:'special',icon:'🏛️',wifi:true,outlets:true,quiet:true,seating:'6个充电口',img:'',desc:'横贯整个一层大厅，空间非常大，层高较高。落地窗使整体采光非常好。靠窗桌子均配有插座。有简餐提供。'},
+ {id:'zjg49',name:'Y MAO·咖啡',addr:'西城年华',loc:[120.0935,30.3075],dist:1259,hours:'',tag:'独立',type:'特色',brand:'special',icon:'☕',wifi:false,outlets:false,quiet:false,seating:'',img:'',desc:'位于西城年华。'},
+ {id:'zjg50',name:'研院咖啡',addr:'研究生院大楼一楼',loc:[120.080448,30.295872],dist:696,hours:'08:00-19:00',tag:'独立',type:'校园',brand:'campus',icon:'🎓',wifi:true,outlets:true,quiet:true,seating:'每桌1个/约25座',img:'',desc:'可容纳约25人，位于大楼1层，较为安静。每张桌子都配有插座，适合久坐、自习办公。'},
+ {id:'zjg51',name:'一问三不知咖啡馆',addr:'振华路',loc:[120.069225,30.312775],dist:1711,hours:'09:00-18:00',tag:'独立',type:'特色',brand:'special',icon:'❓',wifi:true,outlets:true,quiet:true,seating:'座位适中',img:'',desc:'特色咖啡馆，名字别致。提供多种手冲咖啡和创意咖啡饮品。环境安静舒适。'},
+ {id:'zjg52',name:'悦览树',addr:'成均苑区域',loc:[120.075659,30.296222],dist:883,hours:'08:00-19:00',tag:'独立',type:'特色',brand:'special',icon:'🌳',wifi:true,outlets:true,quiet:true,seating:'约70座/每桌均有',img:'',desc:'空间非常大，座位多且每张桌子都配有插座，最多可容纳约70人。可包场，有投影仪可用。'},
+ {id:'zjg53',name:'郁林SPACE',addr:'紫金港校区内',loc:[120.077816,30.29562],dist:813,hours:'09:00-21:00',tag:'独立',type:'特色',brand:'special',icon:'🌲',wifi:true,outlets:true,quiet:false,seating:'1楼1个/2楼每桌均有',img:'',desc:'分为上下两层。2层空间大座位多，配有较多插座；有小包厢，私密性较强；可提供简餐和包场。'},
+ {id:'zjg54',name:'中西书屋',addr:'成均苑3幢（创B大楼）',loc:[120.080963,30.297255],dist:535,hours:'09:00-21:00',tag:'独立',type:'特色',brand:'special',icon:'📚',wifi:true,outlets:true,quiet:true,seating:'约55座/每桌均有',img:'',desc:'位于大众书局的咖啡店，正对南大门。圆形阅读区域，约55个座位，每桌均配有插座。可包场。'},
+ {id:'zjg55',name:'紫牛公社',addr:'行政大楼',loc:[120.088117,30.303527],dist:610,hours:'09:00-15:00',tag:'独立',type:'特色',brand:'special',icon:'🐂',wifi:true,outlets:true,quiet:true,seating:'很多插座',img:'',desc:'坐在这里可以看到启真湖的美景。伴着咖啡香气，看着启真湖的波光粼粼，是一种享受。'},
+];
+
+// ==================== STATE ====================
+var map, markers=[], all=[], filtered=[], radius=5000, curTag='', listMode=false, sortBy='dist';
+
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// ==================== INIT ====================
+function init(){
+  map = new AMap.Map('map',{center:[120.082,30.302],zoom:15,mapStyle:'amap://styles/dark',resizeEnable:true,doubleClickZoom:true,scrollWheel:true,touchZoom:true});
+  SHOPS.sort(function(a,b){return a.dist-b.dist;});
+  all = SHOPS;
+  filter();
+  bindEvents();
+}
+
+// ==================== FILTER ====================
+function sortData(){
+  if(sortBy==='name'){
+    filtered.sort(function(a,b){return a.name.localeCompare(b.name,'zh');});
+  }else{
+    filtered.sort(function(a,b){return a.dist-b.dist;});
+  }
+}
+function filter(){
+  var kw=(document.getElementById('kw').value||'').trim().toLowerCase();
+  filtered=all.filter(function(s){
+    if(s.dist>radius)return false;
+    if(curTag && s.tag!==curTag)return false;
+    if(kw && s.name.toLowerCase().indexOf(kw)===-1 && (s.tag||'').toLowerCase().indexOf(kw)===-1 && (s.type||'').toLowerCase().indexOf(kw)===-1)return false;
+    return true;
+  });
+  sortData();
+  renderList();
+  renderMarkers();
+  document.getElementById('cnt').textContent=filtered.length;
+}
+
+// ==================== LIST ====================
+function renderList(){
+  var el=document.getElementById('list');
+  if(!filtered.length){el.innerHTML='<div class="empty"><div class="icon">😔</div><div class="t1">没有找到咖啡店</div><div class="t2">试试调整筛选范围或关键词</div></div>';return;}
+  el.innerHTML='';
+  var kw=(document.getElementById('kw').value||'').trim().toLowerCase();
+  filtered.forEach(function(s,i){
+    var brandClass = s.brand || 'special';
+    var c=document.createElement('div');c.className='card '+brandClass;
+    c.onclick=function(){focus(s,i);};
+
+    // Amenity badges
+    var badges='';
+    if(s.wifi) badges+='<span class="badge wifi">WiFi</span>';
+    if(s.outlets) badges+='<span class="badge plug">🔌插座</span>';
+    if(s.quiet) badges+='<span class="badge quiet">🤫安静</span>';
+    if(s.seating) badges+='<span class="badge seats">🪑'+s.seating+'</span>';
+
+    // Brand thumbnail
+    var icon = s.icon || '☕';
+
+    // Search highlight
+    var nameHtml=esc(s.name);
+    if(kw){
+      var ekw=kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      nameHtml=nameHtml.replace(new RegExp('('+ekw+')','gi'),'<span class="hl-text">$1</span>');
+    }
+
+    c.innerHTML=
+      '<div class="card-thumb '+brandClass+'">'+icon+'</div>'+
+      '<div class="card-body">'+
+      '<div class="card-name">'+nameHtml+'</div>'+
+      '<div class="card-addr">📍 '+esc(s.addr)+'</div>'+
+      (s.hours?'<div class="card-info-row"><span class="card-hours">🕐 '+s.hours+'</span></div>':'')+
+      (badges?'<div class="card-badges">'+badges+'</div>':'')+
+      '<div class="card-tags"><span class="card-tag">'+esc(s.type)+'</span><span class="card-tag">'+esc(s.tag)+'</span><span style="font-size:9px;color:#6a6a6a;">'+(s.dist>=1000?(s.dist/1000).toFixed(1)+'km':s.dist+'m')+'</span></div>'+
+      '</div>';
+    el.appendChild(c);
+  });
+}
+
+// ==================== MARKERS ====================
+function renderMarkers(){
+  markers.forEach(function(m){m.setMap(null);});
+  markers=[];
+  closeDetail();
+  if(!filtered.length)return;
+  filtered.forEach(function(s,i){
+    var h='<div class="coffee-marker"><div class="cup">☕</div><div class="lbl">'+esc(s.name)+'</div></div>';
+    var m=new AMap.Marker({position:s.loc,content:h,offset:new AMap.Pixel(-18,-40),zIndex:100+i});
+    m.on('click',function(){focus(s,i);});
+    m.setMap(map);
+    markers.push(m);
+  });
+  map.setZoomAndCenter(15,[120.082,30.302]);
+}
+
+// ==================== FOCUS ====================
+function focus(s,i){
+  map.setZoomAndCenter(17,s.loc);
+  var cards=document.querySelectorAll('.card');
+  cards.forEach(function(c){c.classList.remove('hl');});
+  if(cards[i]){cards[i].classList.add('hl');cards[i].scrollIntoView({behavior:'smooth',block:'nearest'});}
+  showDetail(s);
+}
+
+// ==================== DETAIL PANEL ====================
+function showDetail(s){
+  var panel=document.getElementById('detailPanel');
+  var brandClass=s.brand||'special';
+  var icon=s.icon||'☕';
+  var d=s.dist>=1000?(s.dist/1000).toFixed(1)+' km':s.dist+' m';
+  var img=s.img||'';
+
+  var badges='';
+  if(s.wifi) badges+='<span class="badge wifi">WiFi</span>';
+  if(s.outlets) badges+='<span class="badge plug">🔌 有插座</span>';
+  if(s.quiet) badges+='<span class="badge quiet">🤫 安静</span>';
+
+  // Photo area: use image if available, otherwise brand gradient + icon
+  var photoStyle=img?' style="background-image:url('+esc(img)+');background-size:cover;background-position:center;"':'';
+  var photoClass='dp-photo '+brandClass+(img?'':'');
+  var photoInner=img?'':'<span class="dp-photo-icon">'+icon+'</span>';
+
+  panel.innerHTML=
+    '<div class="'+photoClass+'"'+photoStyle+'>'+
+    photoInner+
+    '<button class="dp-close" id="dpClose">✕</button>'+
+    '</div>'+
+    '<div class="dp-header '+brandClass+'">'+
+    '<span class="dp-icon">'+icon+'</span>'+
+    '<div class="dp-info"><div class="dp-name">'+esc(s.name)+'</div><div class="dp-tag">'+esc(s.type)+' · '+esc(s.tag)+'</div></div>'+
+    '</div>'+
+    '<div class="dp-body">'+
+    '<div class="row"><span class="ic">📍</span>'+esc(s.addr)+'</div>'+
+    '<div class="row"><span class="ic">📏</span>距中心约 '+d+'</div>'+
+    (s.hours?'<div class="row"><span class="ic">🕐</span>'+s.hours+'</div>':'')+
+    (s.seating?'<div class="row"><span class="ic">🪑</span>'+s.seating+'</div>':'')+
+    (badges?'<div class="amenities">'+badges+'</div>':'')+
+    (s.desc?'<div class="desc">📝 '+esc(s.desc)+'</div>':'')+
+    '</div>'+
+    '<div class="dp-footer"><a class="nav-btn" href="https://uri.amap.com/navigation?to='+s.loc[0]+','+s.loc[1]+','+encodeURIComponent(s.name)+'&mode=car&callnative=1" target="_blank">🧭 导航去这里</a></div>';
+
+  panel.classList.add('open');
+  document.getElementById('map-wrap').classList.add('panel-open');
+
+  setTimeout(function(){
+    var btn=document.getElementById('dpClose');
+    if(btn) btn.addEventListener('click',function(e){e.stopPropagation();closeDetail();});
+  },100);
+}
+
+function closeDetail(){
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('map-wrap').classList.remove('panel-open');
+  document.querySelectorAll('.card').forEach(function(c){c.classList.remove('hl');});
+}
+
+// ==================== EVENTS ====================
+function bindEvents(){
+  var kw=document.getElementById('kw'),timer;
+  var sc=document.getElementById('searchClear');
+  kw.addEventListener('input',function(){
+    clearTimeout(timer);timer=setTimeout(filter,250);
+    sc.style.display=kw.value.trim()?'flex':'none';
+  });
+  sc.addEventListener('click',function(){kw.value='';sc.style.display='none';filter();kw.focus();});
+
+  // Brand filter
+  document.getElementById('toolBar').addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    document.querySelectorAll('#toolBar button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    curTag=b.getAttribute('data-tag');
+    filter();
+  });
+
+  // Sort bar
+  document.getElementById('sortBar').addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    document.querySelectorAll('#sortBar button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    sortBy=b.getAttribute('data-sort');
+    sortData();renderList();renderMarkers();
+  });
+
+  // Distance filter
+  document.getElementById('filters').addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    document.querySelectorAll('#filters button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    radius=parseInt(b.getAttribute('data-r'));
+    filter();
+  });
+
+  // Sidebar toggle
+  var sb=document.getElementById('sidebar');
+  document.getElementById('toggle').addEventListener('click',function(){
+    sb.classList.toggle('hidden');
+    document.getElementById('toggle').textContent=sb.classList.contains('hidden')?'▶':'◀';
+    setTimeout(function(){map.resize();},350);
+  });
+
+  // List/Map view toggle
+  document.getElementById('viewToggle').addEventListener('click',function(){
+    listMode=!listMode;
+    var mw=document.getElementById('map-wrap');
+    if(listMode){
+      sb.classList.add('full-list');
+      sb.classList.remove('hidden');
+      mw.classList.add('hidden-map');
+      document.getElementById('viewToggle').textContent='🗺️';
+    }else{
+      sb.classList.remove('full-list');
+      mw.classList.remove('hidden-map');
+      document.getElementById('viewToggle').textContent='📋';
+    }
+    setTimeout(function(){map.resize();},350);
+  });
+
+  // Zoom buttons
+  document.getElementById('zoomIn').addEventListener('click',function(){map.zoomIn();});
+  document.getElementById('zoomOut').addEventListener('click',function(){map.zoomOut();});
+
+  // Close detail panel on map click / Escape
+  map.on('click',function(){closeDetail();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail();});
+  window.addEventListener('resize',function(){map.resize();});
+}
+
+// ==================== START ====================
+function start(){
+  if(!window.AMap){setTimeout(start,300);return;}
+  setTimeout(function(){init();},200);
+}
+setTimeout(start,100);
+})();
+</script>
+</body>
+</html>
