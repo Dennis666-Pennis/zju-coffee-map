@@ -325,15 +325,17 @@ body::before{
    width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);
  }
 
- /* Toggle & View: top-left cluster */
- .btn-toggle{top:14px;left:10px;bottom:auto;transform:none;width:38px;height:38px;font-size:13px;}
- .btn-view{top:58px;left:10px;bottom:auto;transform:none;width:38px;height:38px;font-size:13px;}
+ /* Toggle & View: top-left, below notch */
+ .btn-toggle{top:50px;left:12px;bottom:auto;transform:none;width:42px;height:42px;font-size:14px;}
+ .btn-view{top:98px;left:12px;bottom:auto;transform:none;width:42px;height:42px;font-size:14px;}
  .btn-toggle:hover,.btn-view:hover{transform:scale(1.08);}
+ .btn-toggle:active,.btn-view:active{background:rgba(201,169,110,0.3);}
 
- /* Zoom: top-right cluster */
- .btn-zoom-in{top:14px;right:10px;width:34px;height:34px;font-size:18px;}
- .btn-zoom-out{top:54px;right:10px;width:34px;height:34px;font-size:18px;}
+ /* Zoom: top-right, below notch */
+ .btn-zoom-in{top:50px;right:12px;width:42px;height:42px;font-size:20px;touch-action:manipulation;}
+ .btn-zoom-out{top:98px;right:12px;width:42px;height:42px;font-size:20px;touch-action:manipulation;}
  .btn-zoom:hover{transform:scale(1.08);}
+ .btn-zoom:active{background:rgba(201,169,110,0.3);}
 
  /* Compact cards */
  .card{padding:10px 12px;gap:10px;margin-bottom:6px;}
@@ -601,7 +603,7 @@ function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent
 
 // ==================== INIT ====================
 function init(){
-  map = new AMap.Map('map',{center:[120.082,30.302],zoom:15,mapStyle:'amap://styles/dark',resizeEnable:true,doubleClickZoom:true,scrollWheel:true,touchZoom:true});
+  map = new AMap.Map('map',{center:[120.082,30.302],zoom:15,zooms:[10,20],mapStyle:'amap://styles/dark',resizeEnable:true,doubleClickZoom:true,scrollWheel:true,touchZoom:true,dragEnable:true,zoomEnable:true});
   SHOPS.sort(function(a,b){return a.dist-b.dist;});
   all = SHOPS;
   filter();
